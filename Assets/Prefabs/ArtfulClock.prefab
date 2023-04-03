@@ -53,7 +53,7 @@ GameObject:
   - component: {fileID: 5027330744689781646}
   - component: {fileID: 5027330744689781647}
   m_Layer: 0
-  m_Name: Clock
+  m_Name: ArtfulClock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
