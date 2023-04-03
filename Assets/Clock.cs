@@ -23,7 +23,7 @@ public class Clock : MonoBehaviour
 
     void Start()
     {
-        // time = DateTime.Now.Hour * 3600 + DateTime.Now.Minute * 60 + DateTime.Now.Second;
+        time = DateTime.Now.Hour * 3600 + DateTime.Now.Minute * 60 + DateTime.Now.Second;
         SetSecondsArmToAngle(RoundToPrecision(GetSmoothSecondsAngle(DateTime.Now.Second),secondsPrecision));
         SetMinutesArmToAngle(RoundToPrecision(GetSmoothMinutesAngle(DateTime.Now.Minute * 60),minutesPrecision));
         SetHoursArmToAngle(RoundToPrecision(GetSmoothHoursAngle(DateTime.Now.Hour * 3600),hoursPrecision));
