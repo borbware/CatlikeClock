@@ -4,83 +4,95 @@ using UnityEngine;
 
 public class Clock : MonoBehaviour
 {
+    enum ClockTypeEnum {
+        Discrete,
+        Smooth,
+        Realistic
+
+    }
+
     [SerializeField] Transform hoursObj, minutesObj, secondsObj;
     [SerializeField] float hoursAngle, minutesAngle, secondsAngle;
-    public float time = 6 * 3600 + 30 * 60; // as seconds
-    [SerializeField] int hoursPrecision, minutesPrecision, secondsPrecision;
-    private int speed = 1;
+    [SerializeField] float time; // in seconds
+    [SerializeField] int hoursPrecision = 60, minutesPrecision = 60, secondsPrecision = 60;
+    [SerializeField] int speed = 1;
+
+    [SerializeField] ClockTypeEnum clockType;
+
+    [SerializeField] AnimationCurve armMovement;
 
     void Start()
     {
-        time = DateTime.Now.Hour * 3600 + DateTime.Now.Minute * 60 + DateTime.Now.Second;
-        setSeconds(IndicatorPrecision(getSecondsAngle(DateTime.Now.Second),secondsPrecision));
-        setMinutes(IndicatorPrecision(getMinutesAngle(DateTime.Now.Minute * 60),minutesPrecision));
-        setHours(IndicatorPrecision(getHoursAngle(DateTime.Now.Hour * 3600),hoursPrecision));
+        // time = DateTime.Now.Hour * 3600 + DateTime.Now.Minute * 60 + DateTime.Now.Second;
+        SetSecondsArmToAngle(RoundToPrecision(GetSmoothSecondsAngle(DateTime.Now.Second),secondsPrecision));
+        SetMinutesArmToAngle(RoundToPrecision(GetSmoothMinutesAngle(DateTime.Now.Minute * 60),minutesPrecision));
+        SetHoursArmToAngle(RoundToPrecision(GetSmoothHoursAngle(DateTime.Now.Hour * 3600),hoursPrecision));
     }
-    private void setSeconds(float angle) {
+    private void SetSecondsArmToAngle(float angle) {
         secondsAngle = angle;
         secondsObj.localRotation = Quaternion.Euler(0,0,angle);
     }
-    private void setMinutes(float angle) {
+    private void SetMinutesArmToAngle(float angle) {
         minutesAngle = angle;
         minutesObj.localRotation = Quaternion.Euler(0,0,angle);
     }
-    private void setHours(float angle) {
+    private void SetHoursArmToAngle(float angle) {
         hoursAngle = angle;
         hoursObj.localRotation = Quaternion.Euler(0,0,angle);
     }
 
-    private float getSecondsAngle(float time)
+    private float GetSmoothSecondsAngle(float time)
     {
         return ( time % 60 ) / 60 * 360; 
     }
-    private float getMinutesAngle(float time)
+    private float GetSmoothMinutesAngle(float time)
     {
         return ( time / 60 % 60 ) / 60 * 360;
     }
-    private float getHoursAngle(float time)
+    private float GetSmoothHoursAngle(float time)
     {
         return ( time / 3600 % 12 ) / 12 * 360;
     }
 
-    private bool isTimeToMove(float angle, float oldAngle, int precision)
+    private float RoundToPrecision(float angle, int precision) // precision: number of steps per rotation
     {
-        float newAngle = IndicatorPrecision(angle, precision);
-        return (Mathf.DeltaAngle(oldAngle,newAngle) > 0);
+        var stepAngle = ( 360 / precision );
+        return (float)Math.Floor( angle / stepAngle ) * stepAngle;
     }
-    private float IndicatorPrecision(float angle, int precision)
-    {
-        var step = ( 360 / precision );
-        return (float)Math.Floor( angle / step ) * step;
-    }
-    void Update()
+    void FixedUpdate()
     {
         time += Time.deltaTime * speed;
 
-        if (isTimeToMove(getHoursAngle(time),hoursAngle,hoursPrecision))
-            StartCoroutine(
-                LerpFunction(hoursAngle,
-                    IndicatorPrecision(getHoursAngle(time),hoursPrecision), 
-                0.1f / speed, setHours)
+        if (clockType == ClockTypeEnum.Discrete)
+        {
+            SetHoursArmToAngle(RoundToPrecision(GetSmoothHoursAngle(time), hoursPrecision));
+            SetMinutesArmToAngle(RoundToPrecision(GetSmoothMinutesAngle(time), minutesPrecision));
+            SetSecondsArmToAngle(RoundToPrecision(GetSmoothSecondsAngle(time), secondsPrecision));
+        } else if (clockType == ClockTypeEnum.Smooth)
+        {
+            SetHoursArmToAngle(GetSmoothHoursAngle(time));
+            SetMinutesArmToAngle(GetSmoothMinutesAngle(time));
+            SetSecondsArmToAngle(GetSmoothSecondsAngle(time));
+        } else if (clockType == ClockTypeEnum.Realistic)
+        {
+            SetHoursArmToAngle(
+                RoundToPrecision(GetSmoothHoursAngle(time), hoursPrecision)
+                + armMovement.Evaluate(time % 3600 > 3599 ? time % 1 : 0) * GetSmoothHoursAngle(3600)
+                
             );
-
-        if (isTimeToMove(getMinutesAngle(time),minutesAngle,minutesPrecision))
-            StartCoroutine(
-                LerpFunction(minutesAngle,
-                    IndicatorPrecision(getMinutesAngle(time),minutesPrecision),
-                0.1f / speed, setMinutes)
+            SetMinutesArmToAngle(
+                RoundToPrecision(GetSmoothMinutesAngle(time),minutesPrecision)
+                + armMovement.Evaluate(time % 60 > 59 ? time % 1 : 0) * GetSmoothMinutesAngle(60)
             );
-
-        if (isTimeToMove(getSecondsAngle(time),secondsAngle,secondsPrecision)) // second has passed
-            StartCoroutine(
-                LerpFunction(secondsAngle,
-                    IndicatorPrecision(getSecondsAngle(time),secondsPrecision),
-                0.01f / speed, setSeconds)
+            SetSecondsArmToAngle(
+                RoundToPrecision(GetSmoothSecondsAngle(time), secondsPrecision)
+                 + armMovement.Evaluate(time % 1) * GetSmoothSecondsAngle(1)
             );
-
-        //hoursObj.localRotation = Quaternion.Euler(0,0,getHoursAngle(time));
-        //minutesObj.localRotation = Quaternion.Euler(0,0,getMinutesAngle(time));
-        //secondsObj.localRotation = Quaternion.Euler(0,0,secondsAngle(time)); // smooth rotation
+        }
+        // smooth rotation (old)
+        // hoursObj.localRotation = Quaternion.Euler(0,0,HoursAngle(time));
+        // minutesObj.localRotation = Quaternion.Euler(0,0,MinutesAngle(time));
+        // secondsObj.localRotation = Quaternion.Euler(0,0,SecondsAngle(time));
     }
 
     IEnumerator LerpFunction(float startValue, float endValue, float duration, Action<float> func)
